@@ -17,9 +17,7 @@
 @import 'src/theming/colors';
 @import 'src/theming/variables';
 
-$form-max-width: 732px;
 $form-min-width: 732px;
-$form-height: 993px;
 
 :host {
   container-type: size;
@@ -58,11 +56,6 @@ $form-height: 993px;
   white-space: nowrap;
 }
 
-.delete-button {
-  color: $primary;
-  margin-right: auto;
-}
-
 .hidden {
   display: none;
 }
@@ -76,7 +69,7 @@ $form-height: 993px;
     font-style: normal;
     font-weight: 400;
     line-height: 40px;
-    color: $dark-grey;
+    color: $grey-800;
     text-align: center;
     padding: 38px 0;
     background-image: url(/assets/icons/create_device_header.svg);
@@ -121,10 +114,14 @@ $form-height: 993px;
   padding: 0 18px 0 24px;
 }
 
+.device-qualification-form-journey-button-info {
+  display: flex;
+}
+
 .device-qualification-form-journey-button-label {
   font-family: $font-secondary;
   font-style: normal;
-  font-weight: bold;
+  font-weight: 500;
   font-size: 14px;
   line-height: 20px;
   letter-spacing: 0.2px;
@@ -138,18 +135,22 @@ $form-height: 993px;
 .device-qualification-form-step-title {
   margin: 0;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   font-size: 22px;
   line-height: 28px;
   text-align: center;
   color: $grey-900;
+  padding: 0 24px;
+  display: inline-block;
+  height: 28px;
 }
 
 .device-qualification-form-step-description {
+  font-family: $font-secondary;
   text-align: center;
   color: $grey-800;
   margin: 0;
-  padding-top: 8px;
+  padding: 8px 16px 0 16px;
 }
 
 .step-link {
@@ -159,22 +160,25 @@ $form-height: 993px;
 }
 
 .device-qualification-form-step-content {
+  padding: 0 16px;
   overflow: scroll;
 }
 
 .device-qualification-form-page {
+  padding-top: 10px;
+  margin-top: -10px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   height: 100%;
   overflow: hidden;
-  &:last-of-type {
+  align-content: start;
+  &:has(.device-qualification-form-summary-container) {
     grid-template-rows: min-content min-content 1fr min-content;
   }
 }
 
 .device-qualification-form-summary-container {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   align-items: center;
   justify-content: center;
   overflow: scroll;
@@ -200,12 +204,27 @@ $form-height: 993px;
 }
 
 .device-qualification-form-actions {
+  width: $device-item-width;
   text-align: center;
+  padding: 8px 24px;
+  justify-self: center;
+  align-self: end;
+  &:has(.delete-button) {
+    text-align: right;
+  }
+  .close-button,
+  .delete-button {
+    border: 1px solid $lighter-grey;
+  }
+  .delete-button {
+    color: $primary;
+    float: left;
+  }
   .close-button {
     padding: 0 16px;
   }
   .save-button {
-    margin: 0 16px;
+    margin-left: 16px;
   }
 }
 
@@ -266,13 +285,16 @@ $form-height: 993px;
 
 .device-qualification-form-instructions {
   margin-top: auto;
+  padding-top: 8px;
   color: $grey-800;
   text-align: center;
   font-family: $font-secondary;
   font-size: 16px;
-
+  width: 510px;
   ul {
+    margin-bottom: 0;
     text-align: left;
+    padding-left: 26px;
   }
   li {
     line-height: 24px;
@@ -283,6 +305,28 @@ $form-height: 993px;
   background: $white;
 }
 
+.manufacturer-field:has(.error-multiline),
+.model-field:has(.error-multiline) {
+  padding-bottom: 14px;
+}
+
+.device-qualification-form-test-modules-container-error
+  ::ng-deep
+  .device-tests-title {
+  color: $red-800;
+}
+
+.device-qualification-form-test-modules-error {
+  padding: 0 24px;
+}
+
+.form-content-summary {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  grid-row-gap: 16px;
+  overflow: hidden;
+}
+
 @container qualification-form (height < 870px) {
   .device-qualification-form-page {
     overflow: scroll;
@@ -291,6 +335,7 @@ $form-height: 993px;
     }
   }
 }
+
 @container qualification-form (height < 580px) {
   .device-qualification-form-page {
     overflow: scroll;
@@ -298,5 +343,14 @@ $form-height: 993px;
     .device-qualification-form-summary-container {
       overflow: visible;
     }
+  }
+}
+
+@container qualification-form (width < 360px) {
+  .manufacturer-field ::ng-deep mat-hint {
+    white-space: nowrap;
+  }
+  ::ng-deep .device-form-test-modules {
+    display: block;
   }
 }

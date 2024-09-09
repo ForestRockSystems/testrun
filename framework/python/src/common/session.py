@@ -74,7 +74,6 @@ def apply_session_tracker(cls):
       setattr(cls, attr, session_tracker(getattr(cls, attr)))
   return cls
 
-
 @apply_session_tracker
 class TestrunSession():
   """Represents the current session of Testrun."""
@@ -83,6 +82,7 @@ class TestrunSession():
     self._root_dir = root_dir
 
     self._status = TestrunStatus.IDLE
+    self._description = None
 
     # Target test device
     self._device = None
@@ -127,6 +127,7 @@ class TestrunSession():
 
     # System network interfaces
     self._ifaces = {}
+
     # Loading methods
     self._load_version()
     self._load_config()
@@ -237,8 +238,6 @@ class TestrunSession():
         self._config[ORG_NAME_KEY] = config_file_json.get(
           ORG_NAME_KEY
         )
-
-      LOGGER.debug(self._config)
 
   def _load_version(self):
     version_cmd = util.run_command(
@@ -356,6 +355,9 @@ class TestrunSession():
   def set_status(self, status):
     self._status = status
 
+  def set_description(self, desc: str):
+    self._description = desc
+
   def get_test_results(self):
     return self._results
 
@@ -381,10 +383,30 @@ class TestrunSession():
       # result type is TestCase object
       if test_result.name == result.name:
 
-        # Just update the result and description
-        test_result.result = result.result
-        test_result.description = result.description
-        test_result.recommendations = result.recommendations
+        # Just update the result, description and recommendations
+
+        if result.result is not None:
+
+          # Any informational test should always report informational
+          if (test_result.required_result == 'Informational' and
+              result.result in [
+                TestResult.COMPLIANT,
+                TestResult.NON_COMPLIANT,
+                TestResult.FEATURE_NOT_DETECTED
+              ]):
+            test_result.result = TestResult.INFORMATIONAL
+          else:
+            test_result.result = result.result
+
+        if len(result.description) != 0:
+          test_result.description = result.description
+
+        if result.recommendations is not None:
+          test_result.recommendations = result.recommendations
+
+          if len(result.recommendations) == 0:
+            test_result.recommendations = None
+
         updated = True
 
     if not updated:
@@ -478,7 +500,7 @@ class TestrunSession():
                   encoding='utf-8') as f:
 
           # Parse risk profile json
-          json_data = json.load(f)
+          json_data: dict = json.load(f)
 
           # Validate profile JSON
           if not self.validate_profile_json(json_data):
@@ -486,7 +508,22 @@ class TestrunSession():
             continue
 
           # Instantiate a new risk profile
-          risk_profile = RiskProfile()
+          risk_profile: RiskProfile = RiskProfile()
+
+          questions: list[dict] = json_data.get('questions')
+
+          # Remove any additional (outdated questions from the profile)
+          for question in questions:
+
+            # Check if question exists in the profile format
+            if self.get_profile_format_question(
+              question=question.get('question')) is None:
+
+              # Remove question from profile
+              questions.remove(question)
+
+          # Pass questions back to the risk profile
+          json_data['questions'] = questions
 
           # Pass JSON to populate risk profile
           risk_profile.load(profile_json=json_data,
@@ -605,7 +642,8 @@ class TestrunSession():
 
       if format_q is None:
         LOGGER.error(f'Unrecognized question: {question.get("question")}')
-        return False
+        # Just ignore additional questions
+        continue
 
       # Error handling if 'answer' is missing
       if 'answer' not in question and valid:
@@ -683,6 +721,7 @@ question {question.get('question')}''')
 
   def reset(self):
     self.set_status(TestrunStatus.IDLE)
+    self.set_description(None)
     self.set_target_device(None)
     self._report_url = None
     self._total_tests = 0
@@ -714,6 +753,9 @@ question {question.get('question')}''')
 
     if self._report_url is not None:
       session_json['report'] = self.get_report_url()
+
+    if self._description is not None:
+      session_json['description'] = self._description
 
     return session_json
 

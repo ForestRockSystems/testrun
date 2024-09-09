@@ -21,8 +21,6 @@ pydantic==2.7.1
 # Requirements for testing
 pytest==7.4.4
 pytest-timeout==2.2.0
-responses==0.25.3
-
 
 # Requirements for the report
 markdown==3.5.2
@@ -39,3 +37,6 @@ paho-mqtt==2.1.0
 
 # Requirements for background tasks
 APScheduler==3.10.4
+
+# Requirements for reports generation
+Jinja2==3.1.4

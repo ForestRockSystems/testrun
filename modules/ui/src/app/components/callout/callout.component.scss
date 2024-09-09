@@ -31,8 +31,14 @@
   top: 60px;
 }
 
-:host.hidden {
-  display: none;
+:host .info-pilot ::ng-deep app-program-type-icon {
+  padding-right: 1px;
+
+  .icon {
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+  }
 }
 
 @media (width < 742px) {
@@ -69,6 +75,12 @@
 
   .callout-icon {
     color: mat.m2-get-color-from-palette($color-primary, 700);
+  }
+
+  .info-pilot {
+    width: 24px;
+    display: flex;
+    justify-content: center;
   }
 }
 

@@ -22,7 +22,7 @@ import {
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Device, DeviceView, TestModule } from '../../model/device';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, takeUntil, timer } from 'rxjs';
 import { SimpleDialogComponent } from '../../components/simple-dialog/simple-dialog.component';
 import { combineLatest } from 'rxjs/internal/observable/combineLatest';
 import { FocusManagerService } from '../../services/focus-manager.service';
@@ -119,19 +119,22 @@ export class DevicesComponent implements OnInit, OnDestroy {
   openDialog(
     devices: Device[] = [],
     testModules: TestModule[],
+    initialDevice?: Device,
     selectedDevice?: Device,
     isEditDevice = false,
-    index = 0
+    index = 0,
+    deviceIndex?: number
   ): void {
     const dialogRef = this.dialog.open(DeviceQualificationFromComponent, {
       ariaLabel: isEditDevice ? 'Edit device' : 'Create Device',
       data: {
         device: selectedDevice || null,
+        initialDevice,
         title: isEditDevice ? 'Edit device' : 'Create Device',
         testModules: testModules,
         devices,
         index,
-        isLinear: !isEditDevice,
+        isCreate: !isEditDevice,
       },
       autoFocus: true,
       hasBackdrop: true,
@@ -143,7 +146,6 @@ export class DevicesComponent implements OnInit, OnDestroy {
       ?.afterClosed()
       .pipe(takeUntil(this.destroy$))
       .subscribe((response: FormResponse) => {
-        this.devicesStore.selectDevice(null);
         if (!response) {
           this.devicesStore.setIsOpenAddDevice(false);
           return;
@@ -152,10 +154,35 @@ export class DevicesComponent implements OnInit, OnDestroy {
           this.openCloseDialog(
             devices,
             testModules,
+            initialDevice,
             response.device,
             isEditDevice,
-            response.index
+            response.index,
+            deviceIndex
           );
+        } else if (response.action === FormAction.Save && response.device) {
+          timer(10)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(() => {
+              if (!initialDevice) {
+                this.focusManagerService.focusFirstElementInContainer();
+              } else if (deviceIndex !== undefined) {
+                this.focusSelectedButton(deviceIndex);
+              }
+            });
+        }
+        if (response.action === FormAction.Delete && initialDevice) {
+          if (response.device) {
+            this.openDeleteDialog(
+              devices,
+              testModules,
+              initialDevice,
+              response.device,
+              isEditDevice,
+              response.index,
+              deviceIndex!
+            );
+          }
         }
       });
   }
@@ -163,15 +190,17 @@ export class DevicesComponent implements OnInit, OnDestroy {
   openCloseDialog(
     devices: Device[],
     testModules: TestModule[],
+    initialDevice?: Device,
     device?: Device,
     isEditDevice = false,
-    index = 0
+    index = 0,
+    deviceIndex?: number
   ) {
     const dialogRef = this.dialog.open(SimpleDialogComponent, {
       ariaLabel: 'Close the Device menu',
       data: {
-        title: 'Close the Device menu?',
-        content: `Are you ok to close the Device menu?`,
+        title: 'Are you sure?',
+        content: `By closing the device profile you will loose any new changes you have made to the device.`,
       },
       autoFocus: true,
       hasBackdrop: true,
@@ -184,21 +213,87 @@ export class DevicesComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(close => {
         if (!close) {
-          this.openDialog(devices, testModules, device, isEditDevice, index);
-          this.devicesStore.selectDevice(null);
+          this.openDialog(
+            devices,
+            testModules,
+            initialDevice,
+            device,
+            isEditDevice,
+            index
+          );
+        } else if (deviceIndex !== undefined) {
+          this.focusSelectedButton(deviceIndex);
+        } else {
+          this.focusManagerService.focusFirstElementInContainer();
         }
       });
   }
 
-  private focusNextButton() {
+  openDeleteDialog(
+    devices: Device[],
+    testModules: TestModule[],
+    initialDevice: Device,
+    device: Device,
+    isEditDevice = false,
+    index = 0,
+    deviceIndex: number
+  ) {
+    const dialogRef = this.dialog.open(SimpleDialogComponent, {
+      ariaLabel: 'Delete device',
+      data: {
+        title: 'Delete device?',
+        content: `You are about to delete ${
+          initialDevice.manufacturer + ' ' + initialDevice.model
+        }. Are you sure?`,
+        device: device,
+      },
+      autoFocus: true,
+      hasBackdrop: true,
+      disableClose: true,
+      panelClass: 'simple-dialog',
+    });
+    dialogRef
+      ?.afterClosed()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(deleteDevice => {
+        if (deleteDevice) {
+          this.devicesStore.deleteDevice({
+            device: initialDevice,
+            onDelete: () => {
+              this.focusNextButton(deviceIndex);
+            },
+          });
+        } else {
+          this.openDialog(
+            devices,
+            testModules,
+            initialDevice,
+            device,
+            isEditDevice,
+            index,
+            deviceIndex
+          );
+        }
+      });
+  }
+
+  private focusSelectedButton(index: number) {
+    const selected = this.element.nativeElement.querySelectorAll(
+      'app-device-item .button-edit'
+    )[index];
+    if (selected) {
+      selected.focus();
+    }
+  }
+  private focusNextButton(index: number) {
+    this.changeDetectorRef.detectChanges();
     // Try to focus next device item, if exist
-    const next = this.element.nativeElement.querySelector(
-      '.device-item-selected + app-device-item button'
-    );
+    const next = this.element.nativeElement.querySelectorAll(
+      'app-device-item .button-edit'
+    )[index];
     if (next) {
       next.focus();
     } else {
-      this.changeDetectorRef.detectChanges();
       // If next device item doest not exist, add device button should be focused
       const addButton =
         this.element.nativeElement.querySelector('.device-add-button');
